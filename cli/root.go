@@ -32,9 +32,15 @@ Shortcut commands (agent‑friendly):
   xurl mentions                                    Your mentions
 
 Raw API access (curl‑style):
-  xurl /2/users/me
-  xurl -X POST /2/tweets -d '{"text":"Hello world!"}'
-  xurl --auth oauth2 /2/users/me
+  basic requests        xurl /2/users/me
+                        xurl -X POST /2/tweets -d '{"text":"Hello world!"}'
+                        xurl -H "Content-Type: application/json" /2/tweets
+  authentication        xurl --auth oauth2 /2/users/me
+                        xurl --auth oauth1 /2/users/me
+                        xurl --auth app /2/users/me
+  media and streaming   xurl media upload path/to/video.mp4
+                        xurl /2/tweets/search/stream --auth app
+                        xurl -s /2/users/me
 
 Run 'xurl --help' to see all available commands.`,
 		Args: func(cmd *cobra.Command, args []string) error {

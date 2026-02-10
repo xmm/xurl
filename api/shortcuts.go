@@ -206,9 +206,10 @@ func GetUserPosts(client Client, userID string, maxResults int, opts RequestOpti
 }
 
 // GetTimeline fetches the authenticated user's reverse‑chronological timeline.
+// Route: GET /2/users/{id}/timelines/reverse_chronological
 func GetTimeline(client Client, userID string, maxResults int, opts RequestOptions) (json.RawMessage, error) {
 	opts.Method = "GET"
-	opts.Endpoint = fmt.Sprintf("/2/users/%s/reverse_chronological_timeline?max_results=%d&tweet.fields=created_at,public_metrics,conversation_id,entities&expansions=author_id&user.fields=username,name", userID, maxResults)
+	opts.Endpoint = fmt.Sprintf("/2/users/%s/timelines/reverse_chronological?max_results=%d&tweet.fields=created_at,public_metrics,conversation_id,entities&expansions=author_id&user.fields=username,name", userID, maxResults)
 	opts.Data = ""
 
 	return client.SendRequest(opts)
