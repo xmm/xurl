@@ -25,10 +25,14 @@ func createTempTokenStore(t *testing.T) (*store.TokenStore, string) {
 		t.Fatalf("Failed to create temp directory: %v", err)
 	}
 
-	tempFile := filepath.Join(tempDir, "tokens.json")
+	tempFile := filepath.Join(tempDir, ".xurl")
 	tokenStore := &store.TokenStore{
+		Apps:       make(map[string]*store.App),
+		DefaultApp: "default",
+		FilePath:   tempFile,
+	}
+	tokenStore.Apps["default"] = &store.App{
 		OAuth2Tokens: make(map[string]store.Token),
-		FilePath:     tempFile,
 	}
 
 	return tokenStore, tempDir

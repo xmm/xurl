@@ -12,7 +12,7 @@ import (
 )
 
 // CreateRootCommand creates the root command for the xurl CLI
-func CreateRootCommand(config *config.Config, auth *auth.Auth) *cobra.Command {
+func CreateRootCommand(cfg *config.Config, a *auth.Auth) *cobra.Command {
 	var rootCmd = &cobra.Command{
 		Use:   "xurl [flags] URL",
 		Short: "Auth enabled curl-like interface for the X API",
@@ -42,7 +42,21 @@ Raw API access (curl‑style):
                         xurl /2/tweets/search/stream --auth app
                         xurl -s /2/users/me
 
+Multi-app management:
+  xurl auth apps add my-app --client-id ... --client-secret ...
+  xurl auth apps list
+  xurl auth default                                # interactive picker
+  xurl auth default my-app                         # set by name
+  xurl --app my-app /2/users/me                    # per-request override
+
 Run 'xurl --help' to see all available commands.`,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Apply --app override if provided
+			appOverride, _ := cmd.Flags().GetString("app")
+			if appOverride != "" {
+				a.WithAppName(appOverride)
+			}
+		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			return nil
 		},
@@ -70,7 +84,7 @@ Run 'xurl --help' to see all available commands.`,
 
 			url := args[0]
 
-			client := api.NewApiClient(config, auth)
+			client := api.NewApiClient(cfg, a)
 
 			requestOptions := api.RequestOptions{
 				Method:   method,
@@ -90,6 +104,9 @@ Run 'xurl --help' to see all available commands.`,
 		},
 	}
 
+	// Global persistent flag: --app
+	rootCmd.PersistentFlags().String("app", "", "Use a specific registered app (overrides default)")
+
 	rootCmd.Flags().StringP("method", "X", "", "HTTP method (GET by default)")
 	rootCmd.Flags().StringArrayP("header", "H", []string{}, "Request headers")
 	rootCmd.Flags().StringP("data", "d", "", "Request body data")
@@ -100,13 +117,13 @@ Run 'xurl --help' to see all available commands.`,
 	rootCmd.Flags().BoolP("stream", "s", false, "Force streaming mode for non-streaming endpoints")
 	rootCmd.Flags().StringP("file", "F", "", "File to upload (for multipart requests)")
 
-	rootCmd.AddCommand(CreateAuthCommand(auth))
-	rootCmd.AddCommand(CreateMediaCommand(auth))
+	rootCmd.AddCommand(CreateAuthCommand(a))
+	rootCmd.AddCommand(CreateMediaCommand(a))
 	rootCmd.AddCommand(CreateVersionCommand())
-	rootCmd.AddCommand(CreateWebhookCommand(auth))
+	rootCmd.AddCommand(CreateWebhookCommand(a))
 
 	// Register streamlined shortcut commands (post, reply, read, search, etc.)
-	CreateShortcutCommands(rootCmd, auth)
+	CreateShortcutCommands(rootCmd, a)
 
 	return rootCmd
 }

@@ -4,15 +4,36 @@ A command-line tool for interacting with the X (formerly Twitter) API, supportin
 
 ## Features
 
+- **Multi-app support** — register multiple X API apps with separate credentials and tokens
 - OAuth 2.0 PKCE flow authentication
 - OAuth 1.0a authentication
-- Multiple OAuth 2.0 account support
-- Persistent token storage
+- Multiple OAuth 2.0 account support per app
+- Default app and default user selection (interactive Bubble Tea picker or single command)
+- Persistent token storage in YAML (`~/.xurl`), auto-migrates from legacy JSON
 - HTTP request customization (headers, methods, body)
+- Per-request app override with `--app`
 
 ## Installation
+
+### Homebrew (macOS / Linux)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/xdevplatform/xurl/main/install.sh | sudo bash
+brew install xdevplatform/tap/xurl
+```
+
+### npm
+```bash
+npm install -g @xdevplatform/xurl
+```
+
+### Shell script (no sudo required)
+```bash
+curl -fsSL https://raw.githubusercontent.com/xdevplatform/xurl/main/install.sh | bash
+```
+Installs to `~/.local/bin`. If it's not in your PATH, the script will tell you what to add.
+
+### Go
+```bash
+go install github.com/xdevplatform/xurl@latest
 ```
 
 
@@ -22,10 +43,21 @@ curl -fsSL https://raw.githubusercontent.com/xdevplatform/xurl/main/install.sh |
 
 You must have a developer account and app to use this tool. 
 
-#### App authentication:
+#### Register an app
+
+Register your X API app credentials so they're stored in `~/.xurl` (no env vars needed after this):
+
 ```bash
-xurl auth app --bearer-token BEARER_TOKEN
+xurl auth apps add my-app --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
 ```
+
+You can register multiple apps:
+```bash
+xurl auth apps add prod-app --client-id PROD_ID --client-secret PROD_SECRET
+xurl auth apps add dev-app  --client-id DEV_ID  --client-secret DEV_SECRET
+```
+
+> **Legacy / env-var flow:** You can also set `CLIENT_ID` and `CLIENT_SECRET` as environment variables. They'll be auto-saved into the active app on first use.
 
 #### OAuth 2.0 User-Context
 **Note:** For OAuth 2.0 authentication, you must specify the redirect URI in the [X API developer portal](https://developer.x.com/en/portal/dashboard).
@@ -34,27 +66,81 @@ xurl auth app --bearer-token BEARER_TOKEN
 2. Go to authentication settings and set the redirect URI to `http://localhost:8080/callback`.
 ![Setup](./assets/setup.png)
 ![Redirect URI](./assets/callback.png)
-3. Set the client ID and secret in your environment variables.
-```env
-export CLIENT_ID=your_client_id
-export CLIENT_SECRET=your_client_secret
+3. Register the app (if you haven't already):
+```bash
+xurl auth apps add my-app --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
 ```
 4. Get your access keys:
 ```bash
 xurl auth oauth2
 ```
+
+#### App authentication (bearer token):
+```bash
+xurl auth app --bearer-token BEARER_TOKEN
+```
+
 #### OAuth 1.0a authentication:
 ```bash
 xurl auth oauth1 --consumer-key KEY --consumer-secret SECRET --access-token TOKEN --token-secret SECRET
 ```
 
-### Authentication Management
-View authentication status:
+### Multi-App Management
+
+List registered apps:
+```bash
+xurl auth apps list
+```
+
+Update credentials on an existing app:
+```bash
+xurl auth apps update my-app --client-id NEW_ID --client-secret NEW_SECRET
+```
+
+Remove an app:
+```bash
+xurl auth apps remove old-app
+```
+
+Set the default app and user — **interactive picker** (uses Bubble Tea):
+```bash
+xurl auth default
+```
+
+Set the default app and user — **single command**:
+```bash
+xurl auth default my-app              # set default app
+xurl auth default my-app alice        # set default app + default user
+```
+
+Use a specific app for a single request:
+```bash
+xurl --app dev-app /2/users/me
+```
+
+### Authentication Status
+View authentication status across all apps:
 ```bash
 xurl auth status
 ```
 
-Clear authentication:
+Example output:
+```
+▸ my-app  [client_id: VUttdG9P…]
+    ▸ oauth2: alice
+      oauth2: bob
+      oauth1: ✓
+      bearer: ✓
+
+  dev-app  [client_id: OTHER789…]
+      oauth2: (none)
+      oauth1: –
+      bearer: –
+```
+
+`▸` on the left = default app. `▸` next to a user = default user.
+
+### Clear Authentication
 ```bash
 xurl auth clear --all                       # Clear all tokens
 xurl auth clear --oauth1                    # Clear OAuth 1.0a tokens
@@ -190,7 +276,28 @@ xurl '/2/media/upload?command=STATUS&media_id=MEDIA_ID'
 
 ## Token Storage
 
-Tokens are stored securely in `~/.xurl` in your home directory.
+Tokens and app credentials are stored in `~/.xurl` in YAML format. Each registered app has its own isolated set of tokens. Example:
+
+```yaml
+apps:
+  my-app:
+    client_id: abc123
+    client_secret: secret456
+    default_user: alice
+    oauth2_tokens:
+      alice:
+        type: oauth2
+        oauth2:
+          access_token: "..."
+          refresh_token: "..."
+          expiration_time: 1234567890
+    bearer_token:
+      type: bearer
+      bearer: "AAAA..."
+default_app: my-app
+```
+
+> **Migration:** If you have an existing JSON-format `~/.xurl` file from a previous version, it will be automatically migrated to the new YAML multi-app format on first use. Your tokens are preserved in a `default` app.
 
 ## Contributing
 Contributions are welcome!

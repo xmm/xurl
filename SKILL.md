@@ -1,6 +1,6 @@
 ---
 name: xurl
-description: A curl-like CLI tool for making authenticated requests to the X (Twitter) API. Use this skill when you need to post tweets, reply, quote, search, read posts, manage followers, send DMs, upload media, or interact with any X API v2 endpoint. Supports OAuth 2.0, OAuth 1.0a, and app-only auth.
+description: A curl-like CLI tool for making authenticated requests to the X (Twitter) API. Use this skill when you need to post tweets, reply, quote, search, read posts, manage followers, send DMs, upload media, or interact with any X API v2 endpoint. Supports multiple apps, OAuth 2.0, OAuth 1.0a, and app-only auth.
 ---
 
 # xurl — Agent Skill Reference
@@ -11,24 +11,40 @@ description: A curl-like CLI tool for making authenticated requests to the X (Tw
 
 ## Prerequisites
 
-Before using any command you must be authenticated. Run `xurl auth status` to check. If not authenticated, set up one of:
+Before using any command you must be authenticated. Run `xurl auth status` to check.
+
+### Register an app (recommended)
 
 ```bash
-# Option 1 — OAuth 2.0 (user‑context, most common)
-export CLIENT_ID=your_client_id
-export CLIENT_SECRET=your_client_secret
-xurl auth oauth2
+# Register your X API app credentials (stored in ~/.xurl)
+xurl auth apps add my-app --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
 
-# Option 2 — OAuth 1.0a
+# Then authenticate
+xurl auth oauth2
+```
+
+You can register multiple apps and switch between them:
+```bash
+xurl auth apps add prod-app --client-id PROD_ID --client-secret PROD_SECRET
+xurl auth apps add dev-app  --client-id DEV_ID  --client-secret DEV_SECRET
+xurl auth default prod-app          # set default app
+xurl auth default prod-app alice    # set default app + user
+xurl --app dev-app /2/users/me      # one-off override
+```
+
+### Other auth methods
+
+```bash
+# OAuth 1.0a
 xurl auth oauth1 \
   --consumer-key KEY --consumer-secret SECRET \
   --access-token TOKEN --token-secret SECRET
 
-# Option 3 — App‑only bearer token
+# App‑only bearer token
 xurl auth app --bearer-token TOKEN
 ```
 
-Tokens are persisted to `~/.xurl`. Once authenticated, every command below will auto‑attach the right `Authorization` header.
+Tokens are persisted to `~/.xurl` in YAML format. Each app has its own isolated tokens. Once authenticated, every command below will auto‑attach the right `Authorization` header.
 
 ---
 
@@ -66,6 +82,15 @@ Tokens are persisted to `~/.xurl`. Once authenticated, every command below will 
 | List DMs | `xurl dms -n 10` |
 | Upload media | `xurl media upload path/to/file.mp4` |
 | Media status | `xurl media status MEDIA_ID` |
+| **App Management** | |
+| Register app | `xurl auth apps add NAME --client-id ID --client-secret SEC` |
+| List apps | `xurl auth apps list` |
+| Update app creds | `xurl auth apps update NAME --client-id ID` |
+| Remove app | `xurl auth apps remove NAME` |
+| Set default (interactive) | `xurl auth default` |
+| Set default (command) | `xurl auth default APP_NAME [USERNAME]` |
+| Use app per-request | `xurl --app NAME /2/users/me` |
+| Auth status | `xurl auth status` |
 
 > **Post IDs vs URLs:** Anywhere `POST_ID` appears above you can also paste a full post URL (e.g. `https://x.com/user/status/1234567890`) — xurl extracts the ID automatically.
 
@@ -216,10 +241,11 @@ xurl post "lol" --media-id MEDIA_ID
 
 ## Global Flags
 
-These flags work on every shortcut command:
+These flags work on every command:
 
 | Flag | Short | Description |
 |---|---|---|
+| `--app` | | Use a specific registered app for this request (overrides default) |
 | `--auth` | | Force auth type: `oauth1`, `oauth2`, or `app` |
 | `--username` | `-u` | Which OAuth2 account to use (if you have multiple) |
 | `--verbose` | `-v` | Print full request/response headers |
@@ -332,6 +358,24 @@ xurl mentions -n 20
 xurl timeline -n 20
 ```
 
+### Set up multiple apps
+```bash
+# Register two apps
+xurl auth apps add prod --client-id PROD_ID --client-secret PROD_SECRET
+xurl auth apps add staging --client-id STG_ID --client-secret STG_SECRET
+
+# Authenticate users on each
+xurl auth default prod
+xurl auth oauth2                       # authenticates on prod app
+
+xurl auth default staging
+xurl auth oauth2                       # authenticates on staging app
+
+# Switch between them
+xurl auth default prod alice           # prod app, alice user
+xurl --app staging /2/users/me         # one-off request against staging
+```
+
 ---
 
 ## Error Handling
@@ -348,4 +392,7 @@ xurl timeline -n 20
 - **Rate limits:** The X API enforces rate limits per endpoint. If you get a 429 error, wait and retry. Write endpoints (post, reply, like, repost) have stricter limits than read endpoints.
 - **Scopes:** OAuth 2.0 tokens are requested with broad scopes. If you get a 403 on a specific action, your token may lack the required scope — re‑run `xurl auth oauth2` to get a fresh token.
 - **Token refresh:** OAuth 2.0 tokens auto‑refresh when expired. No manual intervention needed.
-- **Multiple accounts:** You can authenticate multiple OAuth 2.0 accounts and switch between them with `--username` / `-u`.
+- **Multiple apps:** Register multiple apps with `xurl auth apps add`. Each app has its own isolated credentials and tokens. Switch with `xurl auth default` or `--app`.
+- **Multiple accounts:** You can authenticate multiple OAuth 2.0 accounts per app and switch between them with `--username` / `-u` or set a default with `xurl auth default APP USER`.
+- **Default user:** When no `-u` flag is given, xurl uses the default user for the active app (set via `xurl auth default`). If no default user is set, it uses the first available token.
+- **Token storage:** `~/.xurl` is YAML. Each app stores its own credentials and tokens.

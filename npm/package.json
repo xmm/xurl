@@ -1,0 +1,22 @@
+{
+  "name": "@xdevplatform/xurl",
+  "version": "1.0.0",
+  "description": "Auth-enabled curl-like CLI for the X API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xdevplatform/xurl"
+  },
+  "homepage": "https://github.com/xdevplatform/xurl",
+  "keywords": ["x", "twitter", "api", "cli", "curl", "oauth"],
+  "bin": {
+    "xurl": "bin/xurl"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/",
+    "install.js"
+  ]
+}

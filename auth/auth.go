@@ -36,24 +36,59 @@ type Auth struct {
 	authURL      string
 	tokenURL     string
 	redirectURI  string
+	appName      string // explicit app override (empty = use default)
 }
 
-// NewAuth creates a new Auth object
-func NewAuth(config *config.Config) *Auth {
+// NewAuth creates a new Auth object.
+// Credentials are resolved in order: env-var config → active app in .xurl store.
+// If env var credentials are present, they're also backfilled into any migrated
+// app that has tokens but no stored credentials.
+func NewAuth(cfg *config.Config) *Auth {
+	ts := store.NewTokenStoreWithCredentials(cfg.ClientID, cfg.ClientSecret)
+
+	// Resolve client ID / secret: env vars take priority, then the active app.
+	clientID := cfg.ClientID
+	clientSecret := cfg.ClientSecret
+	appName := cfg.AppName
+
+	app := ts.ResolveApp(appName)
+	if clientID == "" && app != nil {
+		clientID = app.ClientID
+	}
+	if clientSecret == "" && app != nil {
+		clientSecret = app.ClientSecret
+	}
+
 	return &Auth{
-		TokenStore:   store.NewTokenStore(),
-		infoURL:      config.InfoURL,
-		clientID:     config.ClientID,
-		clientSecret: config.ClientSecret,
-		authURL:      config.AuthURL,
-		tokenURL:     config.TokenURL,
-		redirectURI:  config.RedirectURI,
+		TokenStore:   ts,
+		infoURL:      cfg.InfoURL,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		authURL:      cfg.AuthURL,
+		tokenURL:     cfg.TokenURL,
+		redirectURI:  cfg.RedirectURI,
+		appName:      appName,
 	}
 }
 
 // WithTokenStore sets the token store for the Auth object
 func (a *Auth) WithTokenStore(tokenStore *store.TokenStore) *Auth {
 	a.TokenStore = tokenStore
+	return a
+}
+
+// WithAppName sets the explicit app name override.
+func (a *Auth) WithAppName(appName string) *Auth {
+	a.appName = appName
+	app := a.TokenStore.ResolveApp(appName)
+	if app != nil {
+		if a.clientID == "" {
+			a.clientID = app.ClientID
+		}
+		if a.clientSecret == "" {
+			a.clientSecret = app.ClientSecret
+		}
+	}
 	return a
 }
 

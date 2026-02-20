@@ -7,7 +7,7 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	// OAuth2 client tokens
+	// OAuth2 client tokens (may come from env vars or the active app in .xurl)
 	ClientID     string
 	ClientSecret string
 	// OAuth2 PKCE flow urls
@@ -18,6 +18,8 @@ type Config struct {
 	APIBaseURL string
 	// API user info url
 	InfoURL string
+	// AppName is the explicit --app override; empty means "use default".
+	AppName string
 }
 
 // NewConfig creates a new Config from environment variables

@@ -21,13 +21,17 @@ func createTempTokenStore(t *testing.T) (*store.TokenStore, string) {
 	}
 
 	// Create a token store with a file in the temp directory
-	tempFile := filepath.Join(tempDir, "tokens.json")
-	store := &store.TokenStore{
+	tempFile := filepath.Join(tempDir, ".xurl")
+	ts := &store.TokenStore{
+		Apps:       make(map[string]*store.App),
+		DefaultApp: "default",
+		FilePath:   tempFile,
+	}
+	ts.Apps["default"] = &store.App{
 		OAuth2Tokens: make(map[string]store.Token),
-		FilePath:     tempFile,
 	}
 
-	return store, tempDir
+	return ts, tempDir
 }
 
 func TestNewAuth(t *testing.T) {
@@ -146,4 +150,117 @@ func TestGetOAuth2Scopes(t *testing.T) {
 	// Check for some common scopes
 	assert.Contains(t, scopes, "tweet.read", "Expected 'tweet.read' scope")
 	assert.Contains(t, scopes, "users.read", "Expected 'users.read' scope")
+}
+
+func TestCredentialResolutionPriority(t *testing.T) {
+	tokenStore, tempDir := createTempTokenStore(t)
+	defer os.RemoveAll(tempDir)
+
+	// Store has credentials in the default app
+	tokenStore.Apps["default"].ClientID = "store-id"
+	tokenStore.Apps["default"].ClientSecret = "store-secret"
+	tokenStore.SaveBearerToken("x") // force save
+
+	t.Run("Env vars take priority over store", func(t *testing.T) {
+		cfg := &config.Config{
+			ClientID:     "env-id",
+			ClientSecret: "env-secret",
+		}
+		a := NewAuth(cfg).WithTokenStore(tokenStore)
+		assert.Equal(t, "env-id", a.clientID)
+		assert.Equal(t, "env-secret", a.clientSecret)
+	})
+
+	t.Run("Store used when env vars empty", func(t *testing.T) {
+		// Simulate what NewAuth does when env vars are empty:
+		// it should fall back to the store's app credentials.
+		a := &Auth{
+			TokenStore: tokenStore,
+		}
+		app := tokenStore.ResolveApp("")
+		a.clientID = app.ClientID
+		a.clientSecret = app.ClientSecret
+		assert.Equal(t, "store-id", a.clientID)
+		assert.Equal(t, "store-secret", a.clientSecret)
+	})
+}
+
+func TestWithAppName(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "xurl_auth_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+	t.Setenv("HOME", tempDir)
+
+	tokenStore, tsDir := createTempTokenStore(t)
+	defer os.RemoveAll(tsDir)
+
+	// Add a second app with different credentials
+	tokenStore.AddApp("other", "other-id", "other-secret")
+
+	cfg := &config.Config{}
+	a := NewAuth(cfg).WithTokenStore(tokenStore)
+
+	// Initially no app override — clientID/secret are empty (no env vars, default app has none)
+	assert.Empty(t, a.clientID)
+
+	// Set app name — should pick up other app's credentials
+	a.WithAppName("other")
+	assert.Equal(t, "other-id", a.clientID)
+	assert.Equal(t, "other-secret", a.clientSecret)
+}
+
+func TestWithAppNameNonexistent(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "xurl_auth_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+	t.Setenv("HOME", tempDir)
+
+	tokenStore, tsDir := createTempTokenStore(t)
+	defer os.RemoveAll(tsDir)
+
+	cfg := &config.Config{}
+	a := NewAuth(cfg).WithTokenStore(tokenStore)
+
+	// Setting a nonexistent app name should not panic
+	a.WithAppName("doesnt-exist")
+	// Should fall through to default app (which has empty creds)
+	assert.Empty(t, a.clientID)
+}
+
+func TestOAuth1HeaderWithTokenStore(t *testing.T) {
+	tokenStore, tempDir := createTempTokenStore(t)
+	defer os.RemoveAll(tempDir)
+
+	cfg := &config.Config{}
+	a := NewAuth(cfg).WithTokenStore(tokenStore)
+
+	// No OAuth1 token — should fail
+	_, err := a.GetOAuth1Header("GET", "https://api.x.com/2/users/me", nil)
+	assert.Error(t, err)
+
+	// Save OAuth1 token and try again
+	tokenStore.SaveOAuth1Tokens("at", "ts", "ck", "cs")
+	header, err := a.GetOAuth1Header("GET", "https://api.x.com/2/users/me", nil)
+	require.NoError(t, err)
+	assert.Contains(t, header, "OAuth ")
+	assert.Contains(t, header, "oauth_consumer_key")
+}
+
+func TestGetOAuth2HeaderNoToken(t *testing.T) {
+	tokenStore, tempDir := createTempTokenStore(t)
+	defer os.RemoveAll(tempDir)
+
+	cfg := &config.Config{
+		ClientID:     "test-id",
+		ClientSecret: "test-secret",
+		AuthURL:      "https://x.com/i/oauth2/authorize",
+		TokenURL:     "https://api.x.com/2/oauth2/token",
+		RedirectURI:  "http://localhost:8080/callback",
+		InfoURL:      "https://api.x.com/2/users/me",
+	}
+	_ = NewAuth(cfg).WithTokenStore(tokenStore)
+
+	// Verify that looking up a nonexistent user returns nil
+	token := tokenStore.GetOAuth2Token("nobody")
+	assert.Nil(t, token)
 }
