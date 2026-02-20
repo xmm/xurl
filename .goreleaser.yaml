@@ -50,19 +50,20 @@ changelog:
       - "^docs:"
       - "^test:"
 
-brews:
-  - repository:
+homebrew_casks:
+  - name: xurl
+    repository:
       owner: xdevplatform
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Formula
     homepage: "https://github.com/xdevplatform/xurl"
     description: "Auth-enabled curl-like CLI for the X API"
-    license: "MIT"
-    install: |
-      bin.install "xurl"
-    test: |
-      system "#{bin}/xurl", "version"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/xurl"]
+          end
 
 release:
   footer: >-
