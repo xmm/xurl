@@ -45,6 +45,14 @@ jobs:
           cd npm
           npm version "$VERSION" --no-git-tag-version
 
+      - name: Unpublish npm version if it exists
+        continue-on-error: true
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          npm unpublish "@xdevplatform/xurl@${VERSION}" --registry=https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to npm
         run: |
           cd npm

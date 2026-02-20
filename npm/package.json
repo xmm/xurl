@@ -10,14 +10,13 @@
   "homepage": "https://github.com/xdevplatform/xurl",
   "keywords": ["x", "twitter", "api", "cli", "curl", "oauth"],
   "bin": {
-    "xurl": "bin/xurl"
+    "xurl": "cli.js"
   },
   "scripts": {
     "postinstall": "node install.js"
   },
   "files": [
-    "bin/",
-    "binary/",
+    "cli.js",
     "install.js"
   ]
 }
