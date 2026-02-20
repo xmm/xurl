@@ -9,7 +9,7 @@ const http = require("http");
 
 const VERSION = require("./package.json").version;
 const REPO = "xdevplatform/xurl";
-const BIN_DIR = path.join(__dirname, "bin");
+const BIN_DIR = path.join(__dirname, "binary");
 
 function getPlatform() {
   const platform = os.platform();

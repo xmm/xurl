@@ -15,9 +15,9 @@ A command-line tool for interacting with the X (formerly Twitter) API, supportin
 
 ## Installation
 
-### Homebrew (macOS / Linux)
+### Homebrew (macOS)
 ```bash
-brew install xdevplatform/tap/xurl
+brew install --cask xdevplatform/tap/xurl
 ```
 
 ### npm
