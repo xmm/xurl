@@ -1,4 +1,4 @@
-module xurl
+module github.com/xdevplatform/xurl
 
 go 1.24.0
 

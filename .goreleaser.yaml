@@ -24,9 +24,9 @@ builds:
       - darwin
     ldflags:
       - -s -w
-      - -X xurl/version.Version={{.Version}}
-      - -X xurl/version.Commit={{.Commit}}
-      - -X xurl/version.BuildDate={{.Date}}
+      - -X github.com/xdevplatform/xurl/version.Version={{.Version}}
+      - -X github.com/xdevplatform/xurl/version.Commit={{.Commit}}
+      - -X github.com/xdevplatform/xurl/version.BuildDate={{.Date}}
 
 archives:
   - formats: [tar.gz]

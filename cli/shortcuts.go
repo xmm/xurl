@@ -7,10 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"xurl/api"
-	"xurl/auth"
-	"xurl/config"
-	"xurl/utils"
+	"github.com/xdevplatform/xurl/api"
+	"github.com/xdevplatform/xurl/auth"
+	"github.com/xdevplatform/xurl/config"
+	"github.com/xdevplatform/xurl/utils"
 )
 
 // -----------------------------------------------------------------
